@@ -1,0 +1,73 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+# Load the data
+!wget https://raw.githubusercontent.com/francesconoble13/joeygallo/refs/heads/main/2022_mlb_batting%20-%20Sheet1.csv
+data = pd.read_csv('2022_mlb_batting - Sheet1.csv')
+
+# Select relevant columns
+ratio_data = data[['Player', 'H', 'HR', 'BB', 'SO', 'PA', 'G', 'WAR']]
+
+# Clean Player names (remove any unwanted characters)
+ratio_data['Player'] = ratio_data['Player'].str.replace(r'[^a-zA-Z ]', '', regex=True)
+
+# Calculate HR per hit (HR/H ratio)
+ratio_data['hr_per_hit'] = ratio_data['HR'] / ratio_data['H']
+
+# Calculate the qualified metric (PA per G)
+ratio_data['qualified'] = ratio_data['PA'] / ratio_data['G']
+
+# Filter to include only qualified players
+ratio_data = ratio_data[(ratio_data['qualified'] >= 1.5) & (ratio_data['PA'] >= 200)]
+
+# Calculate walk rate (BB%) and strikeout rate (K%)
+ratio_data['bb_rate'] = ratio_data['BB'] / ratio_data['PA']
+ratio_data['k_rate'] = ratio_data['SO'] / ratio_data['PA']
+
+# Calculate TTO percentage (BB + SO + HR) / PA
+ratio_data['TTO_percentage'] = (ratio_data['BB'] + ratio_data['SO'] + ratio_data['HR']) / ratio_data['PA']
+
+# Optionally, create a TTO score (scaled to 100 for easier interpretation)
+ratio_data['TTO_score'] = ratio_data['TTO_percentage'] * 100
+
+# Sort data by TTO_percentage in descending order
+sorted_ratio_data = ratio_data.sort_values(by='TTO_percentage', ascending=False)
+
+# Prepare data for regression (TTO_percentage vs WAR)
+X = sorted_ratio_data[['TTO_percentage']]  # Independent variable
+y = sorted_ratio_data['WAR']  # Dependent variable (WAR)
+
+# Initialize and fit the linear regression model
+regressor = LinearRegression()
+regressor.fit(X, y)
+
+# Predict y values using the regression model
+y_pred = regressor.predict(X)
+
+# Calculate R^2 value
+r_squared = regressor.score(X, y)
+
+# Create scatter plot with regression line
+plt.figure(figsize=(10, 6))
+plt.scatter(sorted_ratio_data['TTO_percentage'], sorted_ratio_data['WAR'], color='blue', label='Data Points')
+plt.plot(sorted_ratio_data['TTO_percentage'], y_pred, color='red', label=f'Regression Line (R² = {r_squared:.2f})')
+
+# Add labels and title
+plt.xlabel('TTO Percentage')
+plt.ylabel('WAR')
+plt.title('TTO Percentage vs WAR with Regression Line')
+plt.legend()
+
+# Show the plot
+plt.grid(True)
+plt.show()
+
+# Print the R^2 value
+print(f"R² value: {r_squared:.2f}")
+
+# Print Joey Gallo's row
+joey_gallo_row = sorted_ratio_data[sorted_ratio_data['Player'] == 'Joey Gallo']
+print("\nJoey Gallo's row:")
+print(joey_gallo_row)
